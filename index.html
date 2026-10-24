@@ -56,8 +56,20 @@ document.querySelector('#wall').onclick=()=>{if(woodCount>=8){woodCount-=8;let g
 function updateUI(){document.querySelector('#wood').textContent=woodCount;document.querySelector('#plank').textContent=stoneCount;document.querySelector('#tool').textContent=hasAxe?'Stone axe':'Bare hands';document.querySelector('#hp').textContent=hp}
 let last=performance.now();function loop(now){requestAnimationFrame(loop);let dt=Math.min((now-last)/1000,.04);last=now;
 let speed=keys.ShiftLeft?8:4.3,fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw),mx=0,mz=0;
-if(keys.KeyW||keys.ArrowUp){mx+=fx;mz+=fz}if(keys.KeyS||keys.ArrowDown){mx-=fx;mz-=fz}if(keys.KeyA||keys.ArrowLeft){mx-=rx;mz-=rz}if(keys.KeyD||keys.ArrowRight){mx+=rx;mz+=rz}let len=Math.hypot(mx,mz)||1;player.x+=mx/len*speed*dt;player.z+=mz/len*speed*dt;
-player.x=Math.max(-175,Math.min(175,player.x));player.z=Math.max(-175,Math.min(175,player.z));camera.position.set(player.x,player.y,player.z);camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;
+if(keys.KeyW||keys.ArrowUp){mx+=fx;mz+=fz}if(keys.KeyS||keys.ArrowDown){mx-=fx;mz-=fz}if(keys.KeyA||keys.ArrowLeft){mx-=rx;mz-=rz}if(keys.KeyD||keys.ArrowRight){mx+=rx;mz+=rz}
+let len=Math.hypot(mx,mz)||1;mx=mx/len*speed*dt;mz=mz/len*speed*dt;
+function blocked(px,pz){
+ const radius=.42;
+ for(const t of trees){const dx=px-t.x,dz=pz-t.z,min=radius+.34*t.s;if(dx*dx+dz*dz<min*min)return true}
+ for(const r of resources){if(r.type==='stone'){const dx=px-r.mesh.position.x,dz=pz-r.mesh.position.z,min=radius+.55;if(dx*dx+dz*dz<min*min)return true}}
+ for(const b of buildings){const local=b.worldToLocal(new THREE.Vector3(px,0,pz));if(Math.abs(local.x)<1.75&&Math.abs(local.z)<.32)return true}
+ return false;
+}
+const nx=Math.max(-175,Math.min(175,player.x+mx));
+if(!blocked(nx,player.z))player.x=nx;
+const nz=Math.max(-175,Math.min(175,player.z+mz));
+if(!blocked(player.x,nz))player.z=nz;
+camera.position.set(player.x,player.y,player.z);camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;
 let c=closest();document.querySelector('#hint').textContent=c?(c.type==='tree'?'[E]  Chop tree':'[E]  Gather '+c.type):'';sun.position.x=Math.sin(now*.00004)*45;renderer.render(scene,camera)}
 requestAnimationFrame(loop);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});updateUI();
 </script></body></html>
