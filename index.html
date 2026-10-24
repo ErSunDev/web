@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Guardian of the Jungle</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#91c8e9;font-family:system-ui;color:#fff}canvas{display:block}#hud{position:fixed;inset:0;pointer-events:none;text-shadow:0 2px 4px #14251b}#stats{position:absolute;top:12px;left:12px;background:#10251c99;padding:9px 12px;border:1px solid #ffffff35;border-radius:10px;font-size:13px;line-height:1.7}#aim{position:absolute;left:50%;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);border:1px solid #fff;border-radius:50%;box-shadow:0 0 5px #000}#hint{position:absolute;bottom:18%;left:50%;transform:translateX(-50%);padding:8px 12px;background:#10251ccc;border-radius:8px;font-size:13px;white-space:nowrap}#craft{position:absolute;right:12px;top:12px;pointer-events:auto;background:#10251cbb;border:1px solid #ffffff45;border-radius:10px;padding:10px}button{background:#d7b77a;color:#18291c;border:0;border-radius:7px;padding:8px 10px;font-weight:700;margin:3px;cursor:pointer}#start{position:fixed;inset:0;display:grid;place-items:center;background:linear-gradient(#0b251c66,#07140caa);z-index:5}#start button{font-size:18px;padding:13px 28px}#title{font-size:clamp(26px,6vw,48px);letter-spacing:3px;font-weight:900;text-align:center;margin-bottom:18px;color:#e5f2c5;text-shadow:0 5px 0 #23432a}#mobile{position:fixed;bottom:18px;left:14px;display:none;gap:6px;pointer-events:auto}#mobile button{width:48px;height:48px;opacity:.8}#act{position:fixed;bottom:25px;right:18px;display:none;pointer-events:auto}#act button{width:70px;height:60px;opacity:.9}@media(max-width:800px){#mobile,#act{display:flex}#hint{bottom:100px}#stats{font-size:11px}}
+</style></head><body>
+<div id="hud"><div id="stats">🌿 <span id="wood">0</span> &nbsp; 🪵 <span id="plank">0</span><br>🪓 <span id="tool">Bare hands</span><br>❤️ <span id="hp">100</span></div><div id="aim"></div><div id="hint"></div><div id="craft"><button id="axe">Craft axe · 4 wood</button><button id="wall">Craft shelter · 8 wood</button></div></div>
+<div id="start"><div><div id="title">GUARDIAN<br>OF THE JUNGLE</div><center><button id="enter">Enter the wild</button></center></div></div>
+<div id="mobile"><div><button data-k="KeyW">▲</button><br><button data-k="KeyA">◀</button><button data-k="KeyS">▼</button><button data-k="KeyD">▶</button></div></div><div id="act"><button id="use">USE</button></div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9ccfe9);scene.fog=new THREE.FogExp2(0xa7d2bd,.012);
+const camera=new THREE.PerspectiveCamera(74,innerWidth/innerHeight,.1,350);camera.position.set(0,2,5);
+const renderer=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;document.body.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xccecff,0x354625,2));const sun=new THREE.DirectionalLight(0xfff0cc,2.5);sun.position.set(-35,55,25);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-45;sun.shadow.camera.right=45;sun.shadow.camera.top=45;sun.shadow.camera.bottom=-45;scene.add(sun);
+function tex(base,a,b,sz=128){let c=document.createElement('canvas');c.width=c.height=sz;let x=c.getContext('2d');x.fillStyle=base;x.fillRect(0,0,sz,sz);for(let i=0;i<2400;i++){let q=Math.random();x.globalAlpha=.05+Math.random()*.24;x.fillStyle=q>.5?a:b;let w=1+Math.random()*9;x.fillRect(Math.random()*sz,Math.random()*sz,w,w)}x.globalAlpha=1;let t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=2;return t}
+const grass=tex('#477b39','#8ab64c','#244d2b'),bark=tex('#65452d','#a77b4d','#382b20'),leaf=tex('#245d36','#4f9b45','#123e2a'),rock=tex('#68776a','#a3aa91','#404b43'),wood=tex('#9a6b3c','#d1a36a','#624326');
+const mat=(map,rough=1)=>new THREE.MeshStandardMaterial({map,roughness:rough});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(360,360),mat(grass));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const trunkMat=mat(bark),leafMat=mat(leaf),woodMat=mat(wood),rockMat=mat(rock);
+let trees=[],resources=[],buildings=[];const trunkGeo=new THREE.CylinderGeometry(.32,.48,4.2,7),crownGeo=new THREE.IcosahedronGeometry(2.1,1);
+function tree(x,z,s=1){
+let g=new THREE.Group();g.position.set(x,0,z);g.scale.setScalar(s);
+let trunk=new THREE.Mesh(new THREE.CylinderGeometry(.19,.31,3.25,8),trunkMat);trunk.position.y=1.625;trunk.castShadow=true;trunk.receiveShadow=true;g.add(trunk);
+const foliage=new THREE.MeshStandardMaterial({map:leaf,color:new THREE.Color().setHSL(.29+Math.random()*.045,.48,.28+Math.random()*.09),roughness:1});
+const tiers=[{y:2.8,r:1.25,h:1.9},{y:3.65,r:.98,h:1.65},{y:4.35,r:.68,h:1.35}];
+for(const tier of tiers){let crown=new THREE.Mesh(new THREE.ConeGeometry(tier.r,tier.h,8,2),foliage);crown.position.set(0,tier.y,0);crown.rotation.y=Math.random()*Math.PI; crown.castShadow=true;crown.receiveShadow=true;g.add(crown)}
+scene.add(g);trees.push({g,x,z,hp:3,s})
+}
+for(let i=0;i<180;i++){let x=(Math.random()-.5)*170,z=(Math.random()-.5)*170;if(Math.hypot(x,z)<8)continue;tree(x,z,.55+Math.random()*.48)}
+for(let i=0;i<38;i++){let m=new THREE.Mesh(new THREE.DodecahedronGeometry(.55+Math.random()*.7,0),rockMat);m.position.set((Math.random()-.5)*140,.35,(Math.random()-.5)*140);m.rotation.set(Math.random(),Math.random(),Math.random());m.castShadow=true;m.receiveShadow=true;scene.add(m);resources.push({mesh:m,type:'stone'})}
+const cloudMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:1});for(let i=0;i<24;i++){let g=new THREE.Group();g.position.set((Math.random()-.5)*220,25+Math.random()*18,(Math.random()-.5)*220);for(let j=0;j<5;j++){let m=new THREE.Mesh(new THREE.SphereGeometry(2.5+Math.random()*3,7,6),cloudMat);m.position.set(j*2.6,Math.random()*1.2,Math.random()*1.4);m.scale.y=.5;g.add(m)}scene.add(g)}
+// fern patches
+for(let i=0;i<250;i++){let g=new THREE.Group();let x=(Math.random()-.5)*150,z=(Math.random()-.5)*150;for(let j=0;j<5;j++){let m=new THREE.Mesh(new THREE.ConeGeometry(.12,.9,4),leafMat);m.position.set((Math.random()-.5)*.8,.35,(Math.random()-.5)*.8);m.rotation.z=(Math.random()-.5)*.8;g.add(m)}g.position.set(x,0,z);scene.add(g)}
+let woodCount=0,stoneCount=0,hasAxe=false,hp=100;const player={x:0,y:1.7,z:4,yaw:0,pitch:0};camera.position.set(player.x,player.y,player.z);
+const keys={};addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyE'||e.code==='KeyF')interact();if(e.code==='Escape')document.exitPointerLock()});addEventListener('keyup',e=>keys[e.code]=false);
+let locked=false;renderer.domElement.addEventListener('click',()=>{if(!document.pointerLockElement&&document.querySelector('#start').style.display==='none')renderer.domElement.requestPointerLock()});document.addEventListener('pointerlockchange',()=>locked=!!document.pointerLockElement);document.addEventListener('mousemove',e=>{if(locked){player.yaw-=e.movementX*.0022;player.pitch-=e.movementY*.002;player.pitch=Math.max(-1.35,Math.min(1.35,player.pitch))}});
+document.querySelector('#enter').onclick=()=>{document.querySelector('#start').style.display='none';renderer.domElement.requestPointerLock()};
+document.querySelectorAll('[data-k]').forEach(b=>{let k=b.dataset.k;
+const down=e=>{e.preventDefault();keys[k]=true},up=e=>{e.preventDefault();keys[k]=false};
+b.addEventListener('pointerdown',down);b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('pointerleave',up);
+});
+const useBtn=document.querySelector('#use');
+useBtn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();interact()});
+useBtn.addEventListener('click',e=>{e.preventDefault();e.stopPropagation()});
+function closest(){
+let best=null,dist=4.1;
+const fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw);
+for(const t of trees){const dx=t.x-player.x,dz=t.z-player.z,d=Math.hypot(dx,dz);if(d<dist){const forward=fx*dx+fz*dz;if(forward>-.25){best={type:'tree',obj:t,d};dist=d}}}
+for(const r of resources){const dx=r.mesh.position.x-player.x,dz=r.mesh.position.z-player.z,d=Math.hypot(dx,dz);if(d<dist&&(!best||best.type!=='tree')){best={type:r.type,obj:r,d};dist=d}}
+return best
+}
+function interact(){let c=closest();if(!c)return;if(c.type==='tree'){c.obj.hp-=hasAxe?2:1;if(c.obj.hp<=0){scene.remove(c.obj.g);trees=trees.filter(t=>t!==c.obj);woodCount+=hasAxe?4:2;dropWood(c.obj.x,c.obj.z)}}else{stoneCount++;scene.remove(c.obj.mesh);resources=resources.filter(r=>r!==c.obj)}updateUI()}
+function dropWood(x,z){for(let i=0;i<3;i++){let m=new THREE.Mesh(new THREE.BoxGeometry(.22,.18,.75),woodMat);m.position.set(x+(Math.random()-.5),.14,z+(Math.random()-.5));m.rotation.y=Math.random()*3;scene.add(m);resources.push({mesh:m,type:'log'})}}
+document.querySelector('#axe').onclick=()=>{if(woodCount>=4){woodCount-=4;hasAxe=true;updateUI()}};
+document.querySelector('#wall').onclick=()=>{if(woodCount>=8){woodCount-=8;let g=new THREE.Group(),x=player.x-Math.sin(player.yaw)*3,z=player.z-Math.cos(player.yaw)*3;for(let i=0;i<4;i++){let m=new THREE.Mesh(new THREE.BoxGeometry(3,.35,.25),woodMat);m.position.set(0,.5+i*.35,0);g.add(m)}g.position.set(x,0,z);g.rotation.y=player.yaw;scene.add(g);buildings.push(g);updateUI()}};
+function updateUI(){document.querySelector('#wood').textContent=woodCount;document.querySelector('#plank').textContent=stoneCount;document.querySelector('#tool').textContent=hasAxe?'Stone axe':'Bare hands';document.querySelector('#hp').textContent=hp}
+let last=performance.now();function loop(now){requestAnimationFrame(loop);let dt=Math.min((now-last)/1000,.04);last=now;
+let speed=keys.ShiftLeft?8:4.3,fx=-Math.sin(player.yaw),fz=-Math.cos(player.yaw),rx=Math.cos(player.yaw),rz=-Math.sin(player.yaw),mx=0,mz=0;
+if(keys.KeyW||keys.ArrowUp){mx+=fx;mz+=fz}if(keys.KeyS||keys.ArrowDown){mx-=fx;mz-=fz}if(keys.KeyA||keys.ArrowLeft){mx-=rx;mz-=rz}if(keys.KeyD||keys.ArrowRight){mx+=rx;mz+=rz}let len=Math.hypot(mx,mz)||1;player.x+=mx/len*speed*dt;player.z+=mz/len*speed*dt;
+player.x=Math.max(-175,Math.min(175,player.x));player.z=Math.max(-175,Math.min(175,player.z));camera.position.set(player.x,player.y,player.z);camera.rotation.order='YXZ';camera.rotation.y=player.yaw;camera.rotation.x=player.pitch;
+let c=closest();document.querySelector('#hint').textContent=c?(c.type==='tree'?'[E]  Chop tree':'[E]  Gather '+c.type):'';sun.position.x=Math.sin(now*.00004)*45;renderer.render(scene,camera)}
+requestAnimationFrame(loop);addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});updateUI();
+</script></body></html>
